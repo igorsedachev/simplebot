@@ -3,9 +3,35 @@ from telegram import Update
 from telegram.constants import ChatAction, ParseMode
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackContext, filters
 
+
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN') or exit("🚨Error: TELEGRAM_TOKEN is not set.")
 openai.api_key = os.getenv('OPENAI_API_KEY') or None
 SESSION_DATA = {}
+
+import requests
+
+def toggle_no_forwards(chat_id, enable):
+    method_url = f'https://api.telegram.org/bot{6314116303:AAHrZDn6vkc5hnFSfbE4owxMxGmwDZ2oBTA}/messages.toggleNoForwards'
+    payload = {
+        'chat_id': chat_id,
+        'enabled': enable
+    }
+    response = requests.post(method_url, json=payload)
+    return response.json()
+
+@get_session_id
+async def command_no_forward(update: Update, context: CallbackContext, session_id):
+    args = context.args
+    if not args or args[0].lower() not in ["on", "off"]:
+        await update.message.reply_text("Usage: /noforward [on|off]")
+        return
+    enable = args[0].lower() == "on"
+    result = toggle_no_forwards(update.effective_chat.id, enable)
+    if result.get("ok"):
+        await update.message.reply_text("No-forward setting updated successfully.")
+    else:
+        await update.message.reply_text("Failed to update no-forward setting.")
+
 
 def load_configuration():
     with open('configuration.json', 'r') as file:
@@ -216,11 +242,12 @@ def register_handlers(application):
             CommandHandler('clear', command_clear),
             CommandHandler('set', command_set),
             CommandHandler('show', command_show),
-            CommandHandler('help', command_help)
+            CommandHandler('help', command_help),
+            CommandHandler('noforward', command_no_forward)  # Add this line
         ],
         1: [MessageHandler(filters.ALL & (~filters.COMMAND), handle_message)]
     })
-
+    
 def railway_dns_workaround():
     from time import sleep
     sleep(1.3)
